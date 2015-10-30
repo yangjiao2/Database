@@ -1,0 +1,179 @@
+--ADD MOVIES
+DROP PROCEDURE IF EXISTS add_movie;
+DELIMITER //
+CREATE PROCEDURE `add_movie` (IN title varchar(100),IN year INT,IN director
+varchar(100),In banner_url varchar(200),IN trailer_url varchar(200),IN star_first_name 
+varchar(50),IN star_last_name varchar(50),IN genre_name varchar(32))
+
+BEGIN
+
+DECLARE movie_exists,star_exists,genre_exists INT DEFAULT 0;
+DECLARE star_id,genre_id,movie_id INT;
+
+BEGIN
+	SET star_exists = (SELECT count(*) from stars as s where s.first_name = star_first_name	AND s.last_name = star_last_name);
+END;
+
+IF star_exists = 1 THEN
+	BEGIN
+		
+		SET star_id = (SELECT s.id FROM stars as s where s.first_name = star_first_name AND s.last_name = star_last_name);
+		
+		
+	END;
+ELSE
+	BEGIN
+		INSERT INTO stars(first_name,last_name) VALUES (star_first_name,star_last_name);
+		SET star_id = LAST_INSERT_ID();
+	END;
+	
+END IF;
+
+
+BEGIN
+	SET genre_exists = (SELECT count(*) from genres as g where g.name = genre_name);
+END;
+
+IF genre_exists = 1 THEN
+	BEGIN
+		
+		SET genre_id = (SELECT g.id FROM genres as g where g.name = genre_name);		
+	END;
+ELSE
+	BEGIN
+		INSERT INTO genres(name) VALUES (genre_name);
+		SET genre_id = LAST_INSERT_ID();
+	END;
+	
+END IF;
+
+
+BEGIN
+	SET movie_exists = (SELECT count(*) from movies as m where m.title = title AND
+	m.year = year AND m.director = director);
+END;
+
+IF movie_exists = 1 THEN
+	BEGIN
+		SET movie_id = (SELECT m.id from movies as m where m.title = title AND
+		m.year = year AND m.director = director);
+	END;
+		
+ELSE
+	INSERT INTO movies(title,year,director,banner_url,trailer_url) VALUES (title,year,director,banner_url,trailer_url);
+	SET movie_id = LAST_INSERT_ID();
+END IF;
+
+BEGIN
+		INSERT INTO stars_in_movies VALUES (star_id,movie_id);
+		INSERT INTO genres_in_movies VALUES (genre_id,movie_id);
+END;
+END//
+
+DELIMITER ;
+
+
+
+//LOGIN
+
+procedure login(in email, password)
+	check if match
+		if yes return menu
+		if no return error
+return;
+
+DELIMITER //
+CREATE PROCEDURE `login` (IN email varchar(50),IN password varchar(20))
+BEGIN
+	SELECT count(*) FROM employees as e where e.email = email AND e.password = password;
+END//
+DELIMITER ;
+
+
+
+DROP PROCEDURE IF EXISTS duplicate_movies;
+DROP PROCEDURE IF EXISTS duplicate_stars;
+DROP PROCEDURE IF EXISTS duplicate_genres;
+DROP PROCEDURE IF EXISTS stars_without_movies;
+DROP PROCEDURE IF EXISTS movies_without_stars;
+DROP PROCEDURE IF EXISTS genres_without_movies;
+DROP PROCEDURE IF EXISTS movies_without_genres;
+DROP PROCEDURE IF EXISTS stars_with_ivalid_dob;
+DROP PROCEDURE IF EXISTS customers_with_invalid_email;
+DROP PROCEDURE IF EXISTS expired_creditcards;
+DROP PROCEDURE IF EXISTS stars_with_invalid_names;
+
+DELIMITER //
+CREATE PROCEDURE `duplicate_movies` ()
+BEGIN
+	SELECT id,title,director,year FROM movies as m1 WHERE m1.title IN
+		(SELECT title FROM movies GROUP BY title, year HAVING count(id) > 1)
+		AND
+		m1.year IN 
+		(SELECT year FROM movies GROUP BY title, year HAVING count(id) > 1) 
+		ORDER BY m1.title;
+END//
+
+CREATE PROCEDURE `duplicate_stars` ()
+BEGIN
+	SELECT id,first_name,last_name,dob FROM stars as s1 WHERE s1.first_name IN
+		(SELECT first_name FROM stars GROUP BY first_name, last_name, dob HAVING count(id) > 1)
+		AND
+		s1.last_name IN 
+		(SELECT last_name FROM stars GROUP BY first_name, last_name, dob HAVING count(id) > 1)
+		AND
+		s1.dob IN
+		(SELECT dob FROM stars GROUP BY first_name, last_name, dob HAVING count(id) > 1) 
+		ORDER BY s1.first_name, s1.last_name;
+END//
+
+CREATE PROCEDURE `duplicate_genres` ()
+BEGIN
+	 SELECT * FROM genres as g1 WHERE g1.name IN
+		(SELECT name FROM genres GROUP BY name HAVING count(id) > 1)
+		ORDER BY g1.name;
+END//
+
+CREATE PROCEDURE `stars_without_movies` ()
+BEGIN
+	 
+	SELECT * FROM stars as s WHERE s.id NOT IN (SELECT star_id FROM stars_in_movies); 
+END//
+
+CREATE PROCEDURE `movies_without_stars` ()
+BEGIN
+	 SELECT * FROM movies as m WHERE m.id NOT IN (SELECT movie_id FROM stars_in_movies);
+END//
+
+CREATE PROCEDURE `genres_without_movies` ()
+BEGIN
+	 SELECT * FROM genres as g WHERE g.id NOT IN (SELECT genre_id FROM genres_in_movies);
+END//
+
+CREATE PROCEDURE `movies_without_genres` ()
+BEGIN
+	SELECT * FROM movies as m WHERE m.id NOT IN (SELECT movie_id FROM genres_in_movies); 
+END//
+
+CREATE PROCEDURE `stars_with_ivalid_dob` ()
+BEGIN
+	SELECT * FROM stars as s WHERE s.dob > CURDATE() OR YEAR(s.dob) < '1900';
+END//
+
+CREATE PROCEDURE `customers_with_invalid_email` ()
+BEGIN
+	SELECT * FROM customers WHERE INSTR(email, '@')  = 0;
+END//
+
+CREATE PROCEDURE `expired_creditcards` ()
+BEGIN
+	SELECT * FROM creditcards as cdt 
+	WHERE cdt.expiration < CURDATE() and cdt.id IN (SELECT DISTINCT(cc_id) as distinct_ccid FROM customers);
+END//
+
+CREATE PROCEDURE `stars_with_invalid_names` ()
+BEGIN
+	SELECT * FROM stars WHERE first_name is NULL OR last_name is NULL;
+END//
+
+DELIMITER ;
